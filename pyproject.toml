@@ -1,0 +1,12 @@
+[project]
+name = "cs250"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "alembic>=1.15.2",
+    "fastapi>=0.115.12",
+    "pydantic>=2.11.4",
+    "sqlalchemy>=2.0.40",
+    "uvicorn>=0.34.2",
+]
