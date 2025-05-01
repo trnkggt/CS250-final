@@ -1,12 +1,15 @@
 from contextlib import asynccontextmanager
 from sqlalchemy import text
 from fastapi import Depends, FastAPI
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.users import auth_backend, current_active_user, fastapi_users
 
 
-from .core import sessionmanager
-from .models import User
+from .core import sessionmanager, get_db
+from .models import User, CanvasToken
 
 
 @asynccontextmanager
@@ -60,3 +63,22 @@ app.include_router(
 @app.get("/authenticated-route")
 async def authenticated_route(user: User = Depends(current_active_user)):
     return {"message": f"Hello {user.email}!"}
+
+
+@app.post("/save/token")
+async def save_token(token: str,
+                     user: User = Depends(current_active_user),
+                     session: AsyncSession = Depends(get_db)):
+    result = await session.execute(
+        select(CanvasToken).where(CanvasToken.user_id == user.id)
+    )
+    existing_token = result.scalar_one_or_none()
+
+    if existing_token:
+        existing_token.token = token
+    else:
+        token = CanvasToken(token=token, user_id=user.id)
+        session.add(token)
+
+    await session.commit()
+    return {"message": "Token saved"}
