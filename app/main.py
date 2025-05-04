@@ -27,7 +27,8 @@ async def lifespan(app: FastAPI):
 
     if sessionmanager._engine is not None:
         await sessionmanager.close()
-app = FastAPI(lifespan=lifespan, response_class=ORJSONResponse)
+app = FastAPI(lifespan=lifespan, response_class=ORJSONResponse,
+              docs_url="/dev/api/docs")
 
 
 @app.get("/")
