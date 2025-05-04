@@ -23,4 +23,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM base AS final
 
+# Copy the script into the image
+COPY scripts/entrypoint.sh /app/scripts/entrypoint.sh
+
+# Make it executable
+RUN chmod +x /app/scripts/entrypoint.sh
+
+# Set it as the container's entrypoint
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+
+
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
