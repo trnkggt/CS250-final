@@ -1,9 +1,10 @@
 import uuid
 import enum
+from datetime import datetime
 
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
-from sqlalchemy import ForeignKey, Integer
+from sqlalchemy import ForeignKey, Integer, DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import String, UUID, Enum
@@ -60,6 +61,15 @@ class Reminder(Base):
     task_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         nullable=False
+    )
+    course_name: Mapped[str] = mapped_column(
+        String(length=320), nullable=False
+    )
+    assignment_name: Mapped[str] = mapped_column(
+        String(length=320), nullable=False
+    )
+    deadline: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
     )
 
     status: Mapped[ReminderStatus] = mapped_column(

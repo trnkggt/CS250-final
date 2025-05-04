@@ -1,7 +1,6 @@
 from app.celery import celery
 import boto3
 
-from app.schemas import Task
 
 @celery.task
 def send_notification(email: str, task: dict):

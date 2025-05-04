@@ -1,15 +1,17 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from typing import List
 
 import httpx
 from fastapi.responses import ORJSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from sqlalchemy import text, and_
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.schemas import UserCreate, UserRead, UserUpdate, Task
+from app.schemas import UserCreate, UserRead, UserUpdate, TaskSchema, \
+    ReminderSchema
 from app.users import auth_backend, current_active_user, fastapi_users, \
     current_verified_user
 
@@ -128,28 +130,58 @@ async def get_assignments(
         planner_items = response.json()
         assignments = []
 
+        stmt = select(Reminder.plannable_id).where(
+            and_(
+                Reminder.user_id == user.id,
+                Reminder.status == ReminderStatus.pending
+            )
+        )
+        user_reminders = await session.scalars(stmt)
+
+
         for item in planner_items:
-            if item.get("plannable_type") == "assignment":
-                plannable = item.get("plannable", {})
-                submission = item.get("submissions", {})
-                assignments.append({
-                    "plannable_id": item.get("plannable_id"),
-                    "name": plannable.get("title"),
-                    "deadline": plannable.get("due_at"),
-                    "course": item.get("context_name"),
-                    "submitted": submission.get("submitted"),
-                    "graded": submission.get("graded"),
-                    "points_possible": item.get("plannable").get("points_possible")
-                })
+            if item['plannable_id'] not in user_reminders:
+                if item.get("plannable_type") == "assignment":
+                    plannable = item.get("plannable", {})
+                    submission = item.get("submissions", {})
+                    assignments.append({
+                        "plannable_id": item.get("plannable_id"),
+                        "name": plannable.get("title"),
+                        "deadline": plannable.get("due_at"),
+                        "course": item.get("context_name"),
+                        "submitted": submission.get("submitted"),
+                        "graded": submission.get("graded"),
+                        "points_possible": item.get("plannable").get("points_possible")
+                    })
 
     return assignments
 
+@app.get("/active/reminders",
+         response_model=List[ReminderSchema],
+         status_code=200,
+         description="Get reminder statuses for user.")
+async def get_reminders(
+        session: AsyncSession = Depends(get_db),
+        user: User = Depends(current_active_user)
+):
+    stmt = select(Reminder).where(
+        and_(
+            Reminder.user_id == user.id,
+            Reminder.status == ReminderStatus.pending
+        )
+    )
+    reminders = await session.execute(stmt)
+
+    return reminders.scalars().all()
+
 
 @app.post(
-    "/schedule/notification"
+    "/schedule/notification",
+    status_code=200,
+    description="Schedule notification to user."
 )
 async def schedule_notification(
-        task: Task,
+        task: TaskSchema,
         session: AsyncSession = Depends(get_db),
         user: User = Depends(current_active_user),
 ):
@@ -163,7 +195,10 @@ async def schedule_notification(
         reminder = Reminder(
             plannable_id=task.plannable_id,
             task_id=result.id,
-            user_id=user.id
+            user_id=user.id,
+            course_name=task.course_name,
+            assignment_name=task.assignment_name,
+            deadline=task.deadline
         )
         session.add(reminder)
         await session.commit()
