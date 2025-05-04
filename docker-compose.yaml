@@ -50,6 +50,7 @@ services:
     build:
       context: .
     command: celery -A app.celery.celery worker --loglevel=info
+    entrypoint: [""]
     volumes:
       - .:/app
     depends_on:
