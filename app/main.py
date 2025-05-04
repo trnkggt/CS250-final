@@ -231,6 +231,45 @@ async def schedule_notification(
 ):
 
     try:
+        notification_time = task.deadline - timedelta(hours=1)
+
+        result = send_notification.apply_async(
+            args=[user.email, task.model_dump()],
+            eta=notification_time
+        )
+
+        reminder = Reminder(
+            plannable_id=task.plannable_id,
+            task_id=result.id,
+            user_id=user.id,
+            course_name=task.course_name,
+            assignment_name=task.assignment_name,
+            deadline=task.deadline
+        )
+        session.add(reminder)
+        await session.commit()
+
+        return {
+            "task_id": result.id
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to schedule notification"
+        )
+
+@app.post(
+    "/send/fake/notification",
+    status_code=200,
+    description="Schedule notification to user."
+)
+async def schedule_fake_notification(
+        task: TaskSchema,
+        session: AsyncSession = Depends(get_db),
+        user: User = Depends(current_active_user),
+):
+
+    try:
         result = send_notification.apply_async(
             args=[user.email, task.model_dump()],
             eta=task.deadline
