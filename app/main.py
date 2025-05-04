@@ -3,17 +3,19 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 from fastapi.responses import ORJSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.schemas import UserCreate, UserRead, UserUpdate, Task
-from app.users import auth_backend, current_active_user, fastapi_users
+from app.users import auth_backend, current_active_user, fastapi_users, \
+    current_verified_user
 
 
 from .core import sessionmanager, get_db
-from .models import User, CanvasToken
+from .models import User, CanvasToken, Reminder, ReminderStatus
 from .tasks import send_notification
 
 
@@ -30,16 +32,19 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, response_class=ORJSONResponse,
               docs_url="/dev/api/docs")
 
+origins = [
+    "http://localhost",
+    "http://localhost:8080",
+    "http://localhost:3000"
+]
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World!"}
-
-@app.get("/hello/{name}")
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
-
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(
     fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
@@ -64,11 +69,6 @@ app.include_router(
     prefix="/users",
     tags=["users"],
 )
-
-
-@app.get("/authenticated-route")
-async def authenticated_route(user: User = Depends(current_active_user)):
-    return {"message": f"Hello {user.email}!"}
 
 
 @app.post("/save/token")
@@ -133,11 +133,13 @@ async def get_assignments(
                 plannable = item.get("plannable", {})
                 submission = item.get("submissions", {})
                 assignments.append({
+                    "plannable_id": item.get("plannable_id"),
                     "name": plannable.get("title"),
                     "deadline": plannable.get("due_at"),
                     "course": item.get("context_name"),
                     "submitted": submission.get("submitted"),
-                    "graded": submission.get("graded")
+                    "graded": submission.get("graded"),
+                    "points_possible": item.get("plannable").get("points_possible")
                 })
 
     return assignments
@@ -148,6 +150,7 @@ async def get_assignments(
 )
 async def schedule_notification(
         task: Task,
+        session: AsyncSession = Depends(get_db),
         user: User = Depends(current_active_user),
 ):
 
@@ -156,6 +159,14 @@ async def schedule_notification(
             args=[user.email, task.model_dump()],
             eta=task.deadline
         )
+
+        reminder = Reminder(
+            plannable_id=task.plannable_id,
+            task_id=result.id,
+            user_id=user.id
+        )
+        session.add(reminder)
+        await session.commit()
 
         return {
             "task_id": result.id

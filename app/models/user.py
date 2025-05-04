@@ -1,11 +1,12 @@
 import uuid
+import enum
 
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.types import String, UUID
+from sqlalchemy.types import String, UUID, Enum
 
 from app.core.database import Base, get_db
 
@@ -19,6 +20,12 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         uselist=False,
         cascade="all, delete-orphan"
     )
+
+    reminders: Mapped["Reminder"] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
 
 class CanvasToken(Base):
     __tablename__ = "canvastoken"
@@ -36,6 +43,38 @@ class CanvasToken(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="canvas_token")
+
+
+class ReminderStatus(enum.Enum):
+    finished = "finished"
+    pending = "pending"
+
+class Reminder(Base):
+    __tablename__ = "reminders"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    plannable_id: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False
+    )
+
+    status: Mapped[ReminderStatus] = mapped_column(
+        Enum(ReminderStatus, name="reminder_status"),
+        default=ReminderStatus.pending,
+        nullable=False,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id"),
+        nullable=False,
+    )
+    user: Mapped["User"] = relationship(back_populates="reminders")
+
 
 
 async def get_user_db(session: AsyncSession = Depends(get_db)):
