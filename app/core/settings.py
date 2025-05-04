@@ -1,10 +1,11 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import PostgresDsn, computed_field
 
 
 class Settings(BaseSettings):
     class Config:
         env_file = ".env"
+        extra = "allow"
 
     DB_PORT: int
     DB_USER: str
