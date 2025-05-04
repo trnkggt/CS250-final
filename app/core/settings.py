@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     FRONT_URL: str
 
+    FROM_EMAIL: str
+
     @computed_field
     @property
     def database_url(self) -> PostgresDsn:
