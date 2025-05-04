@@ -4,16 +4,17 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from fastapi.responses import ORJSONResponse
 from sqlalchemy import text
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.schemas import UserCreate, UserRead, UserUpdate
+from app.schemas import UserCreate, UserRead, UserUpdate, Task
 from app.users import auth_backend, current_active_user, fastapi_users
 
 
 from .core import sessionmanager, get_db
 from .models import User, CanvasToken
+from .tasks import send_notification
 
 
 @asynccontextmanager
@@ -96,11 +97,12 @@ async def get_assignments(
         select(CanvasToken).where(CanvasToken.user_id == user.id)
     )
     token = result.scalar_one_or_none()
-    now = datetime.now(timezone.utc).isoformat()
+    now = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     end = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()  # next 2 weeks
 
     url = f"https://sdsu.instructure.com/"
     headers = {"Authorization": f"Bearer {token.token}"}
+
 
     async with httpx.AsyncClient() as client:
         response = await client.get(
@@ -111,8 +113,16 @@ async def get_assignments(
             },
             headers=headers
         )
-        if response.status_code != 200:
-            return {"error": "Failed to fetch assignments."}
+        if response.status_code == 401:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+        elif response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=response.json()["message"]
+            )
 
         planner_items = response.json()
         assignments = []
@@ -130,3 +140,24 @@ async def get_assignments(
                 })
 
     return assignments
+
+
+@app.post(
+    "/schedule/notification"
+)
+async def schedule_notification(
+        task: Task,
+        user: User = Depends(current_active_user),
+):
+
+    try:
+        result = send_notification.apply_async(
+            args=[user.email, task.model_dump()],
+            eta=task.deadline
+        )
+
+        return {
+            "task_id": result.id
+        }
+    except Exception as e:
+        raise e

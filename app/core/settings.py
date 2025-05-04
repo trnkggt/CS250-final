@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     DB_NAME: str
     DB_HOST: str
 
+    CELERY_BROKER_URL: str
+    CELERY_BACKEND_URL: str
+
     @computed_field
     @property
     def database_url(self) -> PostgresDsn:

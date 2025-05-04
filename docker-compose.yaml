@@ -7,9 +7,13 @@ services:
       - "8080:8080"
     command: ["uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8080"]
     depends_on:
-      - db
-      - rabbitmq
-      - worker
+      db:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      worker:
+        condition: service_started
+
     volumes:
       - .:/app
 
@@ -35,7 +39,12 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-    restart: unless-stopped
+
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   worker:
     build:
@@ -43,10 +52,9 @@ services:
     command: celery -A app.celery.celery worker --loglevel=info
     volumes:
       - .:/app
-    env_file:
-      - .env
     depends_on:
       - rabbitmq
+      - db
 
 volumes:
   postgres_data:
