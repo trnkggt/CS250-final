@@ -23,13 +23,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM base AS final
 
-# Copy the script into the image
 COPY scripts/entrypoint.sh /app/scripts/entrypoint.sh
 
-# Make it executable
 RUN chmod +x /app/scripts/entrypoint.sh
 
-# Set it as the container's entrypoint
+RUN adduser --disabled-password --gecos "" --home /home/appuser appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 
 
