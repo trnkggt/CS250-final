@@ -41,7 +41,8 @@ app = FastAPI(lifespan=lifespan, response_class=ORJSONResponse,
 origins = [
     "http://localhost",
     "http://localhost:8080",
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "http://63.176.229.81"
 ]
 
 app.add_middleware(
