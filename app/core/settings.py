@@ -7,6 +7,8 @@ class Settings(BaseSettings):
         env_file = ".env"
         extra = "allow"
 
+    AWS_REGION: str
+
     SECRET: str
 
     DB_PORT: int

@@ -19,7 +19,7 @@ def send_notification(email: str, task: dict):
         session.commit()
         print(f"Deleted {result.rowcount} rows")
 
-    ses = boto3.client('ses')
+    ses = boto3.client('ses', region_name=settings.AWS_SES_REGION_NAME)
 
     response = ses.send_email(
         Source="",
@@ -37,9 +37,8 @@ def send_notification(email: str, task: dict):
 
 @celery.task
 def send_verification_email(email: str, token: str):
-    print(f"{settings.FRONT_URL}/verify?token={token}")
 
-    ses = boto3.client('ses')
+    ses = boto3.client('ses', region_name=settings.AWS_SES_REGION_NAME)
     response = ses.send_email(
         Source=settings.FROM_EMAIL,
         Destination={'ToAddresses': [f"{email}"]},
@@ -54,9 +53,8 @@ def send_verification_email(email: str, token: str):
 
 @celery.task
 def send_password_reset_email(email: str, token: str):
-    print(f"{settings.FRONT_URL}/reset-password?token={token}")
 
-    ses = boto3.client('ses')
+    ses = boto3.client('ses', region_name=settings.AWS_SES_REGION_NAME)
     response = ses.send_email(
         Source=settings.FROM_EMAIL,
         Destination={'ToAddresses': [f"{email}"]},
