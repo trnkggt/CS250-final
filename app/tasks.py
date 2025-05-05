@@ -22,7 +22,7 @@ def send_notification(email: str, task: dict):
     ses = boto3.client('ses', region_name=settings.AWS_REGION)
 
     response = ses.send_email(
-        Source="",
+        Source=settings.FROM_EMAIL,
         Destination={'ToAddresses': [f"{email}"]},
         Message={
             'Subject': {'Data': 'Deadline Reminder'},
