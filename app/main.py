@@ -54,29 +54,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(
-    fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
-)
-app.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/auth",
-    tags=["auth"],
-)
-app.include_router(
-    fastapi_users.get_reset_password_router(),
-    prefix="/auth",
-    tags=["auth"],
-)
-app.include_router(
-    fastapi_users.get_verify_router(UserRead),
-    prefix="/auth",
-    tags=["auth"],
-)
-app.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate),
-    prefix="/users",
-    tags=["users"],
-)
+
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
@@ -84,6 +62,20 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
         status_code=400,
         content={"detail": "A database error occurred."}
     )
+
+
+@app.delete(
+    "/users/delete",
+    status_code=204,
+    description="Delete the authenticated user's account."
+)
+async def delete_user_account(
+    session: AsyncSession = Depends(get_db),
+    user: User = Depends(current_active_user),
+):
+    await session.delete(user)
+    await session.commit()
+    return
 
 @app.post("/save/token")
 async def save_token(token: str,
@@ -299,3 +291,27 @@ async def schedule_fake_notification(
             status_code=400,
             detail="Unable to schedule notification"
         )
+
+app.include_router(
+    fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
+)
+app.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_reset_password_router(),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_verify_router(UserRead),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate),
+    prefix="/users",
+    tags=["users"],
+)
