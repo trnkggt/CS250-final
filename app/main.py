@@ -88,7 +88,7 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
 @app.post("/save/token")
 async def save_token(token: str,
                      session: AsyncSession = Depends(get_db),
-                     user: User = Depends(current_active_user)):
+                     user: User = Depends(current_verified_user)):
     result = await session.execute(
         select(CanvasToken).where(CanvasToken.user_id == user.id)
     )
@@ -107,11 +107,14 @@ async def save_token(token: str,
 @app.get("/upcoming/assignments")
 async def get_assignments(
         session: AsyncSession = Depends(get_db),
-        user: User = Depends(current_active_user)):
+        user: User = Depends(current_verified_user)):
     result = await session.execute(
         select(CanvasToken).where(CanvasToken.user_id == user.id)
     )
     token = result.scalar_one_or_none()
+    if token is None:
+        raise HTTPException(status_code=404,
+                            detail="No Canvas token found")
     now = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     end = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
 
@@ -173,7 +176,7 @@ async def get_assignments(
          description="Get reminder statuses for user.")
 async def get_reminders(
         session: AsyncSession = Depends(get_db),
-        user: User = Depends(current_active_user)
+        user: User = Depends(current_verified_user)
 ):
     stmt = select(Reminder).where(
         and_(
@@ -192,7 +195,7 @@ async def get_reminders(
 async def delete_reminder(
         task_id: str = Query(..., min_length=1),
         session: AsyncSession = Depends(get_db),
-        user: User = Depends(current_active_user),
+        user: User = Depends(current_verified_user),
 ):
     task_result = AsyncResult(task_id, app=celery)
 
@@ -229,7 +232,7 @@ async def delete_reminder(
 async def schedule_notification(
         task: TaskSchema,
         session: AsyncSession = Depends(get_db),
-        user: User = Depends(current_active_user),
+        user: User = Depends(current_verified_user),
 ):
 
     try:
@@ -268,7 +271,7 @@ async def schedule_notification(
 async def schedule_fake_notification(
         task: TaskSchema,
         session: AsyncSession = Depends(get_db),
-        user: User = Depends(current_active_user),
+        user: User = Depends(current_verified_user),
 ):
 
     try:

@@ -7,8 +7,6 @@ class Settings(BaseSettings):
         env_file = ".env"
         extra = "allow"
 
-    AWS_REGION: str
-
     SECRET: str
 
     DB_PORT: int
@@ -23,6 +21,7 @@ class Settings(BaseSettings):
     FRONT_URL: str
 
     FROM_EMAIL: str
+    GMAIL_APP_PASSWORD: str
 
     @computed_field
     @property
